@@ -255,4 +255,16 @@ namespace MGUtilities
             onUpdate?.Invoke(endState);
         }
     }
+    public static class MGFunc
+    {
+        public static float MapRangeTo01(float value, float x, float y)
+        {
+            return (value - x) / (y - x);
+        }
+        public static float CalculateFrictionMultiplier(float theta, float maxSlope, float maxFrictionMulti)
+        {
+            theta = Mathf.Clamp(theta, 0f, maxSlope);
+            return 1f + (theta / maxSlope) * (maxFrictionMulti - 1f);
+        }
+    }
 }

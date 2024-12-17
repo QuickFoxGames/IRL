@@ -1,8 +1,6 @@
-using JetBrains.Rider.Unity.Editor;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
 public class Vehicle : MonoBehaviour
 {
     [Header("Interacions")]
@@ -49,7 +47,7 @@ public class Vehicle : MonoBehaviour
                 float springForce = m_springStiffness * springCompression;
 
                 m_force = springForce - dampingForce;
-                m_transform.GetChild(0).localPosition = new Vector3(0f, -currentSpringLength, 0f);
+                //m_transform.GetChild(0).localPosition = new Vector3(0f, -currentSpringLength, 0f);
                 m_groundNormal = hit.point;
                 return true;
             }
@@ -59,7 +57,7 @@ public class Vehicle : MonoBehaviour
     private void Start()
     {
         m_rb = GetComponent<Rigidbody>();
-        InitializeSuspension();
+        //InitializeSuspension();
     }
     private void InitializeSuspension()
     {

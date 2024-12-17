@@ -1,5 +1,6 @@
 using UnityEngine;
-public class Laser : MonoBehaviour
+using WeaponAttachments;
+public class Laser : Attachment
 {
     [SerializeField] private Transform m_bulletSpawn;
     [SerializeField] private Transform m_laser;
@@ -7,7 +8,7 @@ public class Laser : MonoBehaviour
     {
         m_laser.forward = ((25f * m_bulletSpawn.forward + m_bulletSpawn.position) - m_laser.position).normalized;
     }
-    void Update()
+    public void Update()
     {
         if (Physics.Raycast(m_bulletSpawn.position, m_bulletSpawn.forward, out RaycastHit hit))
         {

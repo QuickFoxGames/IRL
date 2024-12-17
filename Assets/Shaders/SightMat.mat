@@ -217,6 +217,9 @@ Material:
     - _ReceivesSSRTransparent: 0
     - _RefractionModel: 0
     - _Scale: 0.2
+    - _Scale1: 0.125
+    - _Scale2: 1
+    - _Scale3: 1
     - _Smoothness: 0.5
     - _SmoothnessRemapMax: 1
     - _SmoothnessRemapMin: 0
@@ -238,6 +241,7 @@ Material:
     - _TexWorldScale: 1
     - _TexWorldScaleEmissive: 1
     - _Thickness: 1
+    - _ToggleColorAlpha: 0
     - _ToggleTex2: 0
     - _ToggleTex3: 0
     - _TransmissionEnable: 1
@@ -261,9 +265,9 @@ Material:
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 100, g: 0, b: 0, a: 1}
-    - _Color1: {r: 40, g: 0, b: 0, a: 1}
-    - _Color2: {r: 0, g: 0, b: 40, a: 1}
-    - _Color3: {r: 0, g: 0, b: 40, a: 1}
+    - _Color1: {r: 80, g: 0, b: 0, a: 1}
+    - _Color2: {r: 0, g: 0, b: 0, a: 1}
+    - _Color3: {r: 40, g: 0, b: 0, a: 1}
     - _DiffusionProfileAsset: {r: 0, g: 0, b: 0, a: 0}
     - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}

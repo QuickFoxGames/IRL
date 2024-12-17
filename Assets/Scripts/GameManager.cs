@@ -1,12 +1,21 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
 public class GameManager : Singleton_template<GameManager>
 {
+    public bool m_spawnEnemies;
+    public int m_onHitPoints;
+    public int m_onKillPoints;
     [SerializeField] private GameObject m_weaponWheel;
     [SerializeField] public AnimationCurve m_airDensityCurve;
     [SerializeField] private EnemyManager m_enemyManager;
+
+    [SerializeField] private TextMeshProUGUI m_PointsText;
+    public int m_points;
+
     private Player m_player;
     private BulletPool m_bulletPool;
     private PoolManager m_poolManager;
@@ -15,10 +24,11 @@ public class GameManager : Singleton_template<GameManager>
         m_player = FindFirstObjectByType<Player>();
         m_bulletPool = BulletPool.Instance();
         m_poolManager = PoolManager.Instance();
-        StartCoroutine(m_enemyManager.SpawnEnemy(5, m_poolManager));
+        if (m_spawnEnemies) StartCoroutine(m_enemyManager.SpawnEnemy(5, m_poolManager));
     }
     void Update()
     {
+        if (m_PointsText) m_PointsText.text = "$" + m_points;
         m_bulletPool.HandleBullets(m_poolManager, Instance());
         m_enemyManager.HandleEnemies(m_player.transform.position);
         HandleWeaponWheel();
@@ -56,6 +66,7 @@ public class EnemyManager
     [SerializeField] private float m_maxFrictionMultiplier;
     [SerializeField] private PhysicsMaterial m_physicsMaterial;
     [SerializeField] private LayerMask m_groundMask;
+    [Header("Effects")]
 
     private readonly Dictionary<Collider, Enemy> m_enemyList = new();
     public struct Enemy
@@ -67,6 +78,7 @@ public class EnemyManager
         public Rigidbody m_rb;
         public Transform m_followTarget;
         public NavMeshAgent m_agent;
+        public Slider m_hpSlider;
     }
     public bool TakeDamage(PoolManager poolManager, float damage, Collider c)
     {
@@ -103,6 +115,8 @@ public class EnemyManager
                     m_agent = poolManager.SpawnFromPool("AgentEnemy", pos, Quaternion.identity).GetComponent<NavMeshAgent>()
                 };
                 e.m_followTarget = e.m_agent.transform;
+                e.m_hpSlider = e.m_rb.GetComponentInChildren<Slider>();
+                e.m_hpSlider.maxValue = e.m_currentHp;
                 m_enemyList.Add(e.m_rb.GetComponent<Collider>(), e);
                 t = 0f;
             }
@@ -114,13 +128,16 @@ public class EnemyManager
     {
         foreach (Enemy enemy in m_enemyList.Values)
         {
-            if (Vector3.Distance(enemy.m_rb.position, enemy.m_agent.transform.position) > 1f) enemy.m_agent.Warp(enemy.m_rb.position);
+            if (Vector3.Distance(enemy.m_rb.position, enemy.m_agent.transform.position) > 1f) enemy.m_agent.Warp(enemy.m_rb.position + enemy.m_rb.linearVelocity.normalized * 0.4f);
             enemy.m_agent.SetDestination(playerPos);
+            enemy.m_hpSlider.value = enemy.m_currentHp;
+            Vector3 dir = (enemy.m_followTarget.position - enemy.m_rb.position).normalized;
+            enemy.m_hpSlider.transform.GetChild(0).forward = Vector3.ProjectOnPlane(dir, Vector3.up);
             float speed = enemy.m_rb.linearVelocity.magnitude;
-            enemy.m_agent.speed = speed > 1f ? speed * 1.1f : 1f;
+            enemy.m_agent.speed = speed;
             enemy.m_rb.rotation = enemy.m_agent.transform.rotation;
             CheckGround(enemy.m_rb.transform, enemy);
-            Movement(enemy.m_speed, (enemy.m_followTarget.position - enemy.m_rb.position).normalized, enemy.m_groundNormal, enemy.m_rb);
+            Movement(enemy.m_speed, dir, enemy.m_groundNormal, enemy.m_rb);
         }
     }
     private void Movement(float speed, Vector3 dir, Vector3 groundNormal, Rigidbody rb)

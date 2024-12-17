@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.Rendering.HighDefinition;
 using MGUtilities;
 using UnityEngine.UI;
-using UnityEditor.EditorTools;
 public class BulletPool : Singleton_template<BulletPool>
 {
     [SerializeField] private int m_initialBulletCount;
@@ -71,16 +70,23 @@ public class BulletPool : Singleton_template<BulletPool>
                 if (hit.collider.gameObject.layer == 10)
                 {
                     bool died = gameManager.DealDamageToEnemy(bullet.m_damage, hit.collider);
-                    var hitMarker = poolManager.SpawnFromPool("HitMarker");
+
+                    var hitMarker = poolManager.SpawnFromPool("HitMarker", Vector3.zero, Quaternion.Euler(0f, 0f, Random.Range(-15f, 15f)));
+
                     if (died) hitMarker.GetComponent<Image>().color = Color.red;
                     else hitMarker.GetComponent<Image>().color = Color.white;
+
                     hitMarker.transform.localPosition = Vector3.zero;
                     StartCoroutine(Coroutines.PingPongVector3OverTime(0.9f * Vector3.one, 2f * Vector3.one, 0.125f, value => hitMarker.transform.localScale = value));
                     poolManager.ReturnToPoolDelayed("HitMarker", hitMarker, 0.126f);
-                    /*var damageIndicator = poolManager.SpawnFromPool("DamageIndicator", Camera.main.WorldToScreenPoint(hit.point), Quaternion.identity);
-                    damageIndicator.GetComponent<TextMeshProUGUI>().text = bullet.m_damage.ToString();
-                    damageIndicator.GetComponent<Rigidbody2D>().AddForce(300f * Vector3.up, ForceMode2D.Impulse);
-                    poolManager.ReturnToPoolDelayed("DamageIndicator", damageIndicator, 1f);*/
+
+                    var pointsIndicator = poolManager.SpawnFromPool("PointsIndicator", Camera.main.WorldToScreenPoint(hit.point), Quaternion.identity);
+                    int pointsToAdd = died ? gameManager.m_onKillPoints : gameManager.m_onHitPoints;
+                    gameManager.m_points += pointsToAdd;
+                    pointsIndicator.GetComponent<TextMeshProUGUI>().text = pointsToAdd.ToString();
+                    pointsIndicator.GetComponent<Rigidbody2D>().AddForce(300f * Vector3.up, ForceMode2D.Impulse);
+                    StartCoroutine(Coroutines.LerpVector3ToZeroOverTime(true, 0.5f, value => pointsIndicator.transform.localScale = value));
+                    poolManager.ReturnToPoolDelayed("PointsIndicator", pointsIndicator, 0.55f);
                 }
                 if (hit.normal != Vector3.zero)
                 {
