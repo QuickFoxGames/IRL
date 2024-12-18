@@ -357,16 +357,16 @@ public class Player : MonoBehaviour
     [Space]
     [SerializeField] private float m_dampRate = 3000f;
     [SerializeField] private float m_springRate = 5000f;
-    [SerializeField] private float m_restLength, m_springTravel;
+    [SerializeField] private float m_baseRestLength, m_crouchRestLength, m_baseSpringTravel, m_crouchSpringTravel;
     private float m_hoverForce;
     private void Hover()
     {
-        float maxLength = m_restLength + m_springTravel;
+        float maxLength = (m_crouchInput ? m_crouchRestLength + m_crouchSpringTravel : m_baseRestLength + m_baseSpringTravel);
         m_hoverForce = 0f;
         if (m_groundDist < maxLength && m_groundDist > 0f)
         {
             float currentSpringLength = m_groundDist;
-            float springCompression = (m_restLength - currentSpringLength) / m_springTravel;
+            float springCompression = (m_crouchInput ? m_crouchRestLength : m_baseRestLength - currentSpringLength) / (m_crouchInput ? m_crouchSpringTravel : m_baseSpringTravel);
 
             float springSpeed = Vector3.Dot(m_rb.GetPointVelocity(m_transform.position), m_transform.up);
             float dampingForce = m_dampRate * springSpeed;
@@ -404,7 +404,7 @@ public class Cam
         m_RecoilRot.y += recoil.y;
         m_RecoilRot.z += Random.Range(-1, 1) * recoil.z;
 
-        //m_camTransform.localRotation = Quaternion.Euler(m_xRot + m_RecoilRot.x, m_RecoilRot.y, m_RecoilRot.z);
+        m_cam.transform.localRotation = Quaternion.Euler(m_RecoilRot.x, m_RecoilRot.y, m_RecoilRot.z);
         parent.rotation = Quaternion.Euler(0f, m_yRot, 0f);
 
         m_RecoilRot = Vector3.Lerp(m_RecoilRot, Vector3.zero, recoilSnap * Time.deltaTime);

@@ -100,11 +100,12 @@ public class EnemyManager
     public IEnumerator SpawnEnemy(int numToSpawn, PoolManager poolManager)
     {
         float t = 0f;
+        int i = Random.Range(0, m_spawnPoints.Count - 1);
         while (m_enemyList.Count < numToSpawn)
         {
             if (t > m_timeBetweenSpawns)
             {
-                Vector3 pos = m_spawnPoints[Random.Range(0, m_spawnPoints.Count - 1)].position;
+                Vector3 pos = m_spawnPoints[i].position;
                 Enemy e = new()
                 {
                     m_currentHp = Random.Range(m_maxHPRange.x, m_maxHPRange.y),
@@ -114,11 +115,15 @@ public class EnemyManager
                     m_rb = poolManager.SpawnFromPool("RBEnemy", pos, Quaternion.identity).GetComponent<Rigidbody>(),
                     m_agent = poolManager.SpawnFromPool("AgentEnemy", pos, Quaternion.identity).GetComponent<NavMeshAgent>()
                 };
+                e.m_rb.AddForce(5f * Vector3.forward, ForceMode.Impulse);
                 e.m_followTarget = e.m_agent.transform;
                 e.m_hpSlider = e.m_rb.GetComponentInChildren<Slider>();
                 e.m_hpSlider.maxValue = e.m_currentHp;
                 m_enemyList.Add(e.m_rb.GetComponent<Collider>(), e);
                 t = 0f;
+                int temp = Random.Range(0, m_spawnPoints.Count - 1);
+                if (temp != i) t += m_timeBetweenSpawns;
+                i = temp;
             }
             t += Time.deltaTime;
             yield return null;
@@ -126,23 +131,25 @@ public class EnemyManager
     }
     public void HandleEnemies(Vector3 playerPos)
     {
-        foreach (Enemy enemy in m_enemyList.Values)
+        foreach (Enemy enemy in new List<Enemy>(m_enemyList.Values))
         {
-            if (Vector3.Distance(enemy.m_rb.position, enemy.m_agent.transform.position) > 1f) enemy.m_agent.Warp(enemy.m_rb.position + enemy.m_rb.linearVelocity.normalized * 0.4f);
+            if (Vector3.Distance(enemy.m_rb.position, enemy.m_agent.transform.position) > 3f)
+                enemy.m_agent.Warp(enemy.m_rb.position + enemy.m_rb.linearVelocity.normalized * 0.4f);
+            CheckGround(enemy.m_rb.transform, enemy);
             enemy.m_agent.SetDestination(playerPos);
             enemy.m_hpSlider.value = enemy.m_currentHp;
             Vector3 dir = (enemy.m_followTarget.position - enemy.m_rb.position).normalized;
-            enemy.m_hpSlider.transform.GetChild(0).forward = Vector3.ProjectOnPlane(dir, Vector3.up);
+            Vector3 flatDir = Vector3.ProjectOnPlane(dir, enemy.m_groundNormal);
+            if (flatDir != Vector3.zero) enemy.m_hpSlider.transform.GetChild(0).forward = flatDir;
             float speed = enemy.m_rb.linearVelocity.magnitude;
             enemy.m_agent.speed = speed;
             enemy.m_rb.rotation = enemy.m_agent.transform.rotation;
-            CheckGround(enemy.m_rb.transform, enemy);
-            Movement(enemy.m_speed, dir, enemy.m_groundNormal, enemy.m_rb);
+            Movement(enemy.m_speed, flatDir, enemy.m_groundNormal, enemy.m_rb);
         }
     }
-    private void Movement(float speed, Vector3 dir, Vector3 groundNormal, Rigidbody rb)
+    private void Movement(float speed, Vector3 flatDir, Vector3 groundNormal, Rigidbody rb)
     {
-        Vector3 moveDirection = speed * Vector3.ProjectOnPlane(dir, groundNormal);
+        Vector3 moveDirection = speed * flatDir;
         Vector3 currentVelocity = Vector3.ProjectOnPlane(rb.linearVelocity, groundNormal);
         Vector3 moveForce = rb.mass * 3f * (moveDirection - currentVelocity);
         float theta = Vector3.Angle(groundNormal, Vector3.up);

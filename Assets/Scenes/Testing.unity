@@ -552,7 +552,6 @@ GameObject:
   - component: {fileID: 183943731}
   - component: {fileID: 183943730}
   - component: {fileID: 183943729}
-  - component: {fileID: 183943732}
   - component: {fileID: 183943733}
   m_Layer: 6
   m_Name: Player
@@ -688,38 +687,6 @@ Transform:
   - {fileID: 1168891558}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &183943732
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 183943728}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: afd975b30a6be0840bd04e193cf78c51, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_hips: {fileID: 633663788}
-  m_neck: {fileID: 1211459680}
-  m_head: {fileID: 981391249}
-  m_cam: {fileID: 423231218}
-  m_lLegTarget: {fileID: 589623626}
-  m_lHandTarget: {fileID: 403407461}
-  m_rHandTarget: {fileID: 1163116200}
-  m_lHandGunTarget: {fileID: 458821647}
-  m_rHandGunTarget: {fileID: 475869015}
-  m_lookTargets:
-  - {fileID: 896249187}
-  - {fileID: 1871564082}
-  - {fileID: 796990608}
-  m_target: {fileID: 1750207050}
-  groundLayer:
-    m_Bits: 0
-  footOffset: 0.1
-  raycastDistance: 1.5
-  stepSmoothness: 5
-  m_player: {fileID: 0}
 --- !u!114 &183943733
 MonoBehaviour:
   m_ObjectHideFlags: 0

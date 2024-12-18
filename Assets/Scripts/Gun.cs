@@ -30,6 +30,9 @@ public class Gun : MonoBehaviour
     [SerializeField] private GunAnimation m_gunAnimation;
     public Transform m_lIkTarget;
     public Transform m_rIkTarget;
+    [Header("Gun SFX")]
+    [SerializeField] private AudioSource m_audioSource;
+    [SerializeField] private AudioClip[] m_audioClips;
 
     private bool m_canShoot = true;
     private bool m_isReloading;
@@ -105,6 +108,8 @@ public class Gun : MonoBehaviour
                 UpdateBullet(m_bulletPool.GetBullet(m_bulletSpawn.position, m_bulletSpawn.rotation));
                 m_mag.m_currentAmmo--;
                 m_gunAnimation.AddRecoilImpulse(m_visualRecoil, m_numShots);
+                m_audioSource.clip = m_audioClips[0];
+                m_audioSource.Play();
                 StartCoroutine(DelayShot());
                 var flash = m_pools.SpawnFromPool("MuzzleFlash", m_muzzleFlashSpawn);
                 flash.transform.GetChild(0).localScale = m_muzzleFlashScale;
