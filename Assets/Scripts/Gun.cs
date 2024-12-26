@@ -1,8 +1,16 @@
+using MGUtilities;
 using System.Collections;
 using UnityEngine;
 using WeaponAttachments;
 public class Gun : MonoBehaviour
 {
+    [Header("Type")]
+    [SerializeField] private bool m_semiAuto;
+    [SerializeField] private bool m_burst;
+    [SerializeField] private int m_burstCount;
+    [SerializeField] private float m_fullAutoBurstDelayMulti;
+    [SerializeField] private bool m_multiShot;
+    [SerializeField] private int m_multiShotCount;
     [Header("Stats")]
     [SerializeField] private int m_fireRate;
     [SerializeField] private int Penetration;
@@ -21,7 +29,6 @@ public class Gun : MonoBehaviour
     [SerializeField] private Transform m_bulletSpawn;
     [SerializeField] private Transform m_muzzleFlashSpawn;
     [Header("Gun Animations")]
-    [SerializeField] private float m_lookSwayX;
     [SerializeField] private float m_lookSwayY;
     [SerializeField] private float m_idleSpeed;
     [SerializeField] private Vector2 m_idleFactor;
@@ -37,11 +44,13 @@ public class Gun : MonoBehaviour
     private bool m_canShoot = true;
     private bool m_isReloading;
     private bool m_aimState;
-    private int m_numShots = 0;
     private int m_currentReserveAmmo;
+    private int m_currentNumShots = 0;
     private float m_shotDelay;
-    private BulletPool m_bulletPool;
+
+    private BulletPool3D m_bulletPool;
     private PoolManager m_pools;
+    private GameManager m_gameManager;
 
     private Mag m_mag;
     private Sight m_sight;
@@ -52,13 +61,13 @@ public class Gun : MonoBehaviour
     public int TargetLayer { private get; set; }
     private void Awake()
     {
-        m_bulletPool = BulletPool.Instance();
+        m_bulletPool = BulletPool3D.Instance();
         m_pools = PoolManager.Instance();
+        m_gameManager = GameManager.Instance();
         m_currentReserveAmmo = m_maxReserveAmmo;
         m_shotDelay = 1f / (m_fireRate / 60f);
-        Init();
     }
-    private void Init()
+    public void Init()
     {
         int penetration = Penetration;
         float damage = Damage;
@@ -78,6 +87,7 @@ public class Gun : MonoBehaviour
         m_penetration = penetration;
         m_damage = damage;
         m_muzzleVelocity = muzzleVelocity;
+        m_gunAnimation.Init();
     }
     public void Disable()
     {
@@ -90,43 +100,87 @@ public class Gun : MonoBehaviour
         }
         gameObject.SetActive(false);
     }
+    public void Enable()
+    {
+        m_gunAnimation.EnableAnimator();
+        gameObject.SetActive(true);
+    }
     public void UpdateAnimations(bool state)
     {
         m_aimState = state;
         m_gunAnimation.RunAimState(m_aimState, m_sight);
-        m_gunAnimation.AddLookSway(m_lookSwayX, m_lookSwayY);
+        m_gunAnimation.AddLookSway(m_lookSwayY);
         m_gunAnimation.AddIdleSway(m_idleFactor.x, m_idleFactor.y, m_idleSpeed);
         m_gunAnimation.RunReloadAnimation(m_isReloading, m_reloadTime);
     }
-    public Vector3 Shoot(bool shootInput)
+    public Vector3 Shoot(bool shootInput, bool inputReleased)
     {
-        if (m_canShoot && !m_isReloading && m_mag && shootInput)
+        Vector3 vec = Vector3.zero;
+
+        if (!m_isReloading && m_mag)
         {
             if (m_mag.m_currentAmmo > 0)
             {
-                m_numShots++;
-                UpdateBullet(m_bulletPool.GetBullet(m_bulletSpawn.position, m_bulletSpawn.rotation));
-                m_mag.m_currentAmmo--;
-                m_gunAnimation.AddRecoilImpulse(m_visualRecoil, m_numShots);
-                m_audioSource.clip = m_audioClips[0];
-                m_audioSource.Play();
-                StartCoroutine(DelayShot());
-                var flash = m_pools.SpawnFromPool("MuzzleFlash", m_muzzleFlashSpawn);
-                flash.transform.GetChild(0).localScale = m_muzzleFlashScale;
-                flash.transform.GetChild(1).localScale = m_muzzleFlashScale;
-                if (m_useSparks) flash.transform.GetChild(2).gameObject.SetActive(true);
-                else flash.transform.GetChild(2).gameObject.SetActive(false);
-                m_pools.ReturnToPoolDelayed("MuzzleFlash", flash, 2.1f);
-                float multi = 1f;
-                if (m_numShots >= 4 && m_numShots < 8) multi = 2f;
-                else if (m_numShots >= 8 && m_numShots < 16) multi = 3f;
-                else if (m_numShots >= 16) multi = 4f;
-                return new (m_camRecoil.x, m_camRecoil.y * multi, m_camRecoil.z);
+                if (inputReleased)
+                    m_canShoot = true;
+                if (m_canShoot)
+                {
+                    if (m_burst && (m_currentNumShots > 0 || shootInput))
+                        BurstMode(ref vec);
+                    else if (m_multiShot && shootInput)
+                        MultiShotMode(ref vec);
+                    else if (shootInput)
+                    {
+                        vec = FireBullet(m_shotDelay);
+                        m_mag.m_currentAmmo--;
+                    }
+                }
             }
-            else StartCoroutine(ReloadAmmo());
+            else m_gameManager.StartCoroutine(ReloadAmmo());
         }
-        else m_numShots = 0;
-        return Vector3.zero;
+        else return Vector3.zero;
+
+        return vec;
+    }
+    private void BurstMode(ref Vector3 vec)
+    {
+        m_currentNumShots++;
+        if (m_currentNumShots <= m_burstCount)
+        {
+            float t = m_currentNumShots == m_burstCount ? m_shotDelay * m_fullAutoBurstDelayMulti : m_shotDelay;
+            vec = FireBullet(t);
+            m_mag.m_currentAmmo--;
+        }
+        else m_currentNumShots = 0;
+    }
+    private void MultiShotMode(ref Vector3 vec)
+    {
+        for (int i = 0; i < m_multiShotCount; i++)
+        {
+            vec += FireBullet(m_shotDelay);
+        }
+        vec = vec.normalized * (vec.magnitude / m_multiShotCount);
+        m_mag.m_currentAmmo--;
+    }
+    private Vector3 FireBullet(float t)
+    {
+        UpdateBullet(m_bulletPool.GetBullet(m_bulletSpawn.position, m_bulletSpawn.rotation));
+        m_gunAnimation.AddRecoilImpulse(m_visualRecoil);
+        m_audioSource.clip = m_audioClips[0];
+        m_audioSource.Play();
+        if ((m_semiAuto && m_burst && m_currentNumShots < m_burstCount) || !m_semiAuto) m_gameManager.StartCoroutine(DelayShot(t));
+        else
+        {
+            m_canShoot = false;
+            m_currentNumShots = 0;
+        }
+        var flash = m_pools.SpawnFromPool("MuzzleFlash", m_muzzleFlashSpawn);
+        flash.transform.GetChild(0).localScale = m_muzzleFlashScale;
+        flash.transform.GetChild(1).localScale = m_muzzleFlashScale;
+        if (m_useSparks) flash.transform.GetChild(2).gameObject.SetActive(true);
+        else flash.transform.GetChild(2).gameObject.SetActive(false);
+        m_pools.ReturnToPoolDelayed("MuzzleFlash", flash, 2.1f);
+        return new(m_camRecoil.x, m_camRecoil.y, m_camRecoil.z);
     }
     private void UpdateBullet(Bullet b)
     {
@@ -134,28 +188,28 @@ public class Gun : MonoBehaviour
         b.m_penetration = m_penetration;
         b.m_damage = m_damage;
         Vector3 direction = m_bulletSpawn.forward;
-        if (!m_aimState)
+        if (!m_aimState || m_multiShot)
         {
-            direction = Quaternion.AngleAxis(Random.Range(-m_hipAngle, m_hipAngle), Vector3.up) * direction;
-            direction = Quaternion.AngleAxis(Random.Range(-m_hipAngle, m_hipAngle), Vector3.right) * direction;
+            direction = Quaternion.AngleAxis(Random.Range(-m_hipAngle, m_hipAngle), m_bulletSpawn.up) * direction;
+            direction = Quaternion.AngleAxis(Random.Range(-m_hipAngle, m_hipAngle), m_bulletSpawn.right) * direction;
         }
-        b.m_rb.linearVelocity = m_muzzleVelocity * direction;
+        b.m_rb.linearVelocity = m_muzzleVelocity * direction.normalized;
     }
     public void Reload()
     {
         if (!m_isReloading && m_mag.m_currentAmmo < m_mag.m_capacity && m_currentReserveAmmo > 0)
-            StartCoroutine(ReloadAmmo());
+            m_gameManager.StartCoroutine(ReloadAmmo());
     }
-    private IEnumerator DelayShot()
+    private IEnumerator DelayShot(float t)
     {
+        if (!m_burst) m_currentNumShots = 0;
         m_canShoot = false;
-        yield return new WaitForSeconds(m_shotDelay);
+        yield return new WaitForSeconds(t);
         m_canShoot = true;
     }
     private IEnumerator ReloadAmmo()
     {
         m_isReloading = true;
-        m_numShots = 0;
         yield return new WaitForSeconds(m_reloadTime);
         if (m_currentReserveAmmo < m_mag.m_capacity)
         {
@@ -180,13 +234,37 @@ public class GunAnimation
     [SerializeField] private Vector3 m_aimPosition;
     [SerializeField] private Vector3 m_hipPosition;
     [SerializeField] private Transform m_model;
-    [SerializeField] private Animator m_animator;
+    [SerializeField] public Animator m_animator;
     [SerializeField] private AnimationClip m_reloadClip;
     private bool m_state = false;
     private float m_t = 0f;
     private Vector3 m_lastForward;
     private Vector3 m_targetPosition = Vector3.zero;
     private Quaternion m_targetRotation = Quaternion.identity;
+
+    private Transform[] m_bones;
+    private Vector3[] m_defBonePositions;
+    private Quaternion[] m_defBoneRotations;
+    public void Init()
+    {
+        if (m_animator == null) return;
+        m_bones = m_animator.GetComponentsInChildren<Transform>();
+        m_defBonePositions = new Vector3[m_bones.Length];
+        m_defBoneRotations = new Quaternion[m_bones.Length];
+        for (int i = 0; i < m_bones.Length; i++)
+        {
+            m_defBonePositions[i] = m_bones[i].localPosition;
+            m_defBoneRotations[i] = m_bones[i].localRotation;
+        }
+    }
+    public void EnableAnimator()
+    {
+        if (m_animator == null) return;
+        for (int i = 0; i < m_bones.Length; i++)
+        {
+            m_bones[i].SetLocalPositionAndRotation(m_defBonePositions[i], m_defBoneRotations[i]);
+        }
+    }
     public void RunAimState(bool state, Sight sight)
     {
         m_state = state;
@@ -194,17 +272,16 @@ public class GunAnimation
         m_targetPosition = Vector3.Lerp(m_targetPosition, Vector3.zero, 3f * m_recoilSpeed * Time.deltaTime);
         m_targetRotation = Quaternion.Slerp(m_targetRotation, Quaternion.identity, m_recoilSpeed * Time.deltaTime);
     }
-    public void AddRecoilImpulse(Vector4 visualRecoil, int numShots)
+    public void AddRecoilImpulse(Vector4 visualRecoil)
     {
         visualRecoil *= 0.1f;
         m_targetPosition -= (m_state ? 0.75f : 1f) * visualRecoil.w * Vector3.forward;
         m_targetRotation *= Quaternion.Euler(visualRecoil.x, visualRecoil.y, visualRecoil.z);
     }
-    public void AddLookSway(float swayFactorX, float swayFactorY)
+    public void AddLookSway(float swayFactorY)
     {
-        float yAngle = Vector3.SignedAngle(m_lastForward, m_model.parent.parent.forward, Vector3.up);//AngleAroundYAxis(m_lastForward, m_model.parent.parent.forward);
-        float xAngle = Vector3.SignedAngle(m_lastForward, m_model.parent.parent.forward, Vector3.right);//AngleAroundYAxis(m_lastForward, m_model.parent.parent.forward);
-        m_targetRotation *= Quaternion.Euler(xAngle * swayFactorX * 0.1f, yAngle * swayFactorY, 0f);
+        float yAngle = Vector3.SignedAngle(m_lastForward, m_model.parent.parent.forward, Vector3.up);
+        m_targetRotation *= Quaternion.Euler(0f, yAngle * swayFactorY, 0f);
         m_lastForward = m_model.parent.parent.forward;
     }
     /*float AngleAroundYAxis(Vector3 from, Vector3 to)

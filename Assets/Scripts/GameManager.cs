@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
+using MGUtilities;
 public class GameManager : Singleton_template<GameManager>
 {
     public bool m_spawnEnemies;
@@ -17,12 +18,12 @@ public class GameManager : Singleton_template<GameManager>
     public int m_points;
 
     private Player m_player;
-    private BulletPool m_bulletPool;
+    private BulletPool3D m_bulletPool;
     private PoolManager m_poolManager;
     private void Start()
     {
         m_player = FindFirstObjectByType<Player>();
-        m_bulletPool = BulletPool.Instance();
+        m_bulletPool = BulletPool3D.Instance();
         m_poolManager = PoolManager.Instance();
         if (m_spawnEnemies) StartCoroutine(m_enemyManager.SpawnEnemy(5, m_poolManager));
     }

@@ -1,14 +1,9 @@
 using System.Collections.Generic;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 using MGUtilities;
-using static UnityEngine.GraphicsBuffer;
 public class Player : MonoBehaviour
 {
-    [Header("Debug")]
-    [SerializeField] private float m_planeSize = 1f;
-    [SerializeField] private Color m_planeColor = Color.magenta;
     [Header("CrossHair")]
     [SerializeField] private CrossHair m_crossHair;
     [Header("Camera")]
@@ -24,6 +19,7 @@ public class Player : MonoBehaviour
     private bool m_sprintInput;
     private bool m_crouchInput;
     private bool m_shootInput;
+    private bool m_shootInputReleased;
     private bool m_aimInput;
     private bool m_reloadInput;
     private float m_mouseWheel;
@@ -39,28 +35,6 @@ public class Player : MonoBehaviour
     private HealthSystem m_healthSystem;
     //private Vehicle m_vehicle;
     private Coroutine CrosshairCoroutine;
-    private void OnDrawGizmos()
-    {
-        if (m_groundNormal != Vector3.zero)
-        {
-            Vector3 center = m_transform.position;
-            Vector3 tangent1 = Vector3.Cross(m_groundNormal, Vector3.up).normalized * m_planeSize;
-            /////
-            if (tangent1 == Vector3.zero) tangent1 = Vector3.Cross(m_groundNormal, Vector3.forward).normalized * m_planeSize;
-            /////
-            Vector3 tangent2 = Vector3.Cross(m_groundNormal, tangent1).normalized * m_planeSize;
-            Vector3 corner1 = center + tangent1 + tangent2;
-            Vector3 corner2 = center + tangent1 - tangent2;
-            Vector3 corner3 = center - tangent1 + tangent2;
-            Vector3 corner4 = center - tangent1 - tangent2;
-            /////
-            Gizmos.color = m_planeColor;
-            Gizmos.DrawLine(corner1, corner2);
-            Gizmos.DrawLine(corner2, corner4);
-            Gizmos.DrawLine(corner4, corner3);
-            Gizmos.DrawLine(corner3, corner1);
-        }
-    }
     void Start()
     {
         // Setup
@@ -76,7 +50,10 @@ public class Player : MonoBehaviour
         foreach (Gun g in m_guns) // setup guns
         { 
             g.TargetLayer = m_targetLayers.value;
+            g.Init();
+            g.gameObject.SetActive(false);
         }
+        m_guns[m_gunIndex].gameObject.SetActive(true);
     }
     #region Misc
     public void ToggleMouse()
@@ -86,7 +63,9 @@ public class Player : MonoBehaviour
     }
     private string GetAmmoText()
     {
-        char[] array = new char[m_guns[m_gunIndex].CurrentAmmo];
+        int index = m_guns[m_gunIndex].CurrentAmmo;
+        if (index < 0) return "";
+        char[] array = new char[index];
         for (int i = 0; i < array.Length; i++)
         {
             array[i] = 'l';
@@ -99,7 +78,7 @@ public class Player : MonoBehaviour
         m_gunIndex += m_mouseWheel > 0f ? 1 : -1;
         if (m_gunIndex >= m_guns.Count) m_gunIndex = 0;
         if (m_gunIndex < 0) m_gunIndex = m_guns.Count - 1;
-        m_guns[m_gunIndex].gameObject.SetActive(true);
+        m_guns[m_gunIndex].Enable();
     }
     #endregion
     void Update()
@@ -114,6 +93,8 @@ public class Player : MonoBehaviour
         m_sprintInput = Input.GetKey(KeyCode.LeftShift);
         m_crouchInput = Input.GetKey(KeyCode.LeftControl);
         m_shootInput = Input.GetKey(KeyCode.Mouse0);
+        m_shootInputReleased = Input.GetKeyDown(KeyCode.Mouse0);
+        m_shootInputReleased = Input.GetKeyUp(KeyCode.Mouse0);
         m_aimInput = Input.GetKey(KeyCode.Mouse1);
         m_reloadInput = Input.GetKey(KeyCode.R);
 
@@ -159,10 +140,9 @@ public class Player : MonoBehaviour
         if (CurrentAmmo) CurrentAmmo.text = GetAmmoText();
         if (ReserveAmmo) ReserveAmmo.text = "|" + m_guns[m_gunIndex].ReserveAmmo.ToString();
 
-        Hover();
         m_flatVelocity = Vector3.ProjectOnPlane(m_rb.linearVelocity, m_groundNormal);
 
-        Vector3 recoil = m_guns[m_gunIndex].Shoot(m_shootInput);
+        Vector3 recoil = m_guns[m_gunIndex].Shoot(m_shootInput, m_shootInputReleased);
         m_cam.UpdateFov(m_flatVelocity.magnitude, m_walkSpeed, m_runSpeed);
         Vector2 camRots = m_cam.UpdateCamera(m_mouseX, m_mouseY, m_recoilSnap, recoil, m_transform);
 
@@ -237,7 +217,6 @@ public class Player : MonoBehaviour
     [SerializeField] private float m_maxSlope;
     [SerializeField] private float m_maxFrictionMultiplier;
     [SerializeField] private float m_groundCheckRadius;
-    [SerializeField] private float m_groundCheckNum;
     [Space]
     [SerializeField] private LayerMask m_groundMask;
     [SerializeField] private PhysicsMaterial m_physicsMaterial;
@@ -246,56 +225,20 @@ public class Player : MonoBehaviour
     private Vector3 m_groundNormal;
     public void CheckGround()
     {
-        float angleStep = 360f / m_groundCheckNum;
-        m_groundDist = 0f;
-        List<Vector3> hits = new();
-        /////
-        for (int i = 0; i < 8; i++)
+        Vector3 origin = transform.position + m_groundCheckDistance * Vector3.up;
+
+        if (Physics.SphereCast(origin, m_groundCheckRadius, Vector3.down, out RaycastHit hit, m_groundCheckDistance, m_groundMask))
         {
-            float angleInRadians = Mathf.Deg2Rad * angleStep * i;
-            float x = Mathf.Cos(angleInRadians) * m_groundCheckRadius;
-            float z = Mathf.Sin(angleInRadians) * m_groundCheckRadius;
-            Vector3 origin = new(m_transform.position.x + x, m_transform.position.y + 1f + m_groundCheckDistance, m_transform.position.z + z);
-            /////
-            if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1f + 2f * m_groundCheckDistance, m_groundMask))
-            {
-                m_groundDist += hit.distance;
-                hits.Add(hit.point);
-                Debug.DrawLine(origin, hit.point, Color.green);
-            }
-            else Debug.DrawLine(origin, origin + Vector3.down * m_groundCheckDistance, Color.red);
+            m_groundDist = hit.distance;
+            m_groundNormal = hit.normal;
+            m_isGrounded = true;
         }
-        m_groundDist /= 8f;
-        /////
-        if (hits.Count >= 3)
+        else
         {
-            Vector3 cumulativeNormal = Vector3.zero;
-            int normalCount = 0;
-            /////
-            for (int i = 0; i < hits.Count - 1; i++)
-            {
-                for (int j = i + 1; j < hits.Count; j++)
-                {
-                    for (int k = j + 1; k < hits.Count; k++)
-                    {
-                        Vector3 v1 = hits[j] - hits[i];
-                        Vector3 v2 = hits[k] - hits[i];
-                        Vector3 normal = Vector3.Cross(v1, v2).normalized;
-                        /////
-                        if (normal != Vector3.zero)
-                        {
-                            cumulativeNormal += normal;
-                            normalCount++;
-                        }
-                    }
-                }
-            }
-            /////
-            if (normalCount > 0) cumulativeNormal /= normalCount;
-            /////
-            m_groundNormal = -cumulativeNormal;
+            m_groundDist = Mathf.Infinity;
+            m_groundNormal = Vector3.up;
+            m_isGrounded = false;
         }
-        m_isGrounded = hits.Count > 0;
     }
     #endregion
     #region Movement
@@ -328,7 +271,7 @@ public class Player : MonoBehaviour
             frictionForce = (MGFunc.CalculateFrictionMultiplier(theta, m_maxSlope, m_maxFrictionMultiplier)
                 * m_physicsMaterial.dynamicFriction * m_rb.mass * Physics.gravity.magnitude * Mathf.Cos(theta)) * moveForce.normalized;
         }
-        m_rb.AddForce(moveForce + frictionForce + (!m_jumpInput ? m_hoverForce * m_transform.up : Vector3.zero));
+        m_rb.AddForce(moveForce + frictionForce);
     }
     [Space]
     [SerializeField] private float m_jumpHeight;
