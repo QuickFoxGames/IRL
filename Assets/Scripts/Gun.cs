@@ -222,6 +222,7 @@ public class Gun : MonoBehaviour
             m_currentReserveAmmo -= m_mag.m_capacity;
         }
         m_isReloading = false;
+        m_canShoot = true;
     }
     public int CurrentAmmo { get { return m_mag.m_currentAmmo; } }
     public int ReserveAmmo { get { return m_currentReserveAmmo; } }
