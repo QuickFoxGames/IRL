@@ -1912,7 +1912,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 355f96456df3a514ea66981041496749, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_spawnEnemies: 0
+  m_spawnEnemies: 1
   m_onHitPoints: 10
   m_onKillPoints: 100
   m_weaponWheel: {fileID: 1056477734}
