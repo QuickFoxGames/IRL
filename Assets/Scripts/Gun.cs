@@ -145,13 +145,13 @@ public class Gun : MonoBehaviour
     }
     private void BurstMode(ref Vector3 vec)
     {
-        m_currentNumShots++;
         if (m_currentNumShots <= m_burstCount)
         {
             float t = m_currentNumShots == m_burstCount ? m_shotDelay * m_fullAutoBurstDelayMulti : m_shotDelay;
             vec = FireBullet(t);
             SpawnVFX();
             m_mag.m_currentAmmo--;
+            m_currentNumShots++;
         }
         else m_currentNumShots = 0;
     }

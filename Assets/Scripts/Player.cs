@@ -146,7 +146,7 @@ public class Player : MonoBehaviour
 
         m_healthSystem.RegenHp();
 
-        m_guns[m_gunIndex].UpdateAnimations((m_rb.linearVelocity.magnitude <= m_walkSpeed * 1.1f && m_aimInput) || (!m_sprintInput && m_rb.linearVelocity.magnitude > m_walkSpeed * 1.1f));
+        m_guns[m_gunIndex].UpdateAnimations((m_rb.linearVelocity.magnitude <= m_walkSpeed * 1.1f && m_aimInput) || (!m_sprintInput && m_rb.linearVelocity.magnitude > m_walkSpeed * 1.1f && m_aimInput));
         if (m_reloadInput) m_guns[m_gunIndex].Reload();
 
         if (!m_sprintInput && !m_aimInput) m_crossHair.UpdateCrossHair(recoil.x);

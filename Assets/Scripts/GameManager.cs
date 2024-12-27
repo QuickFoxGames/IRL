@@ -29,6 +29,7 @@ public class GameManager : Singleton_template<GameManager>
     }
     void Update()
     {
+        if (m_enemyManager.m_enemyList.Count <= 0) StartCoroutine(m_enemyManager.SpawnEnemy(5, m_poolManager));
         if (m_PointsText) m_PointsText.text = "$" + m_points;
         m_bulletPool.HandleBullets(m_poolManager, Instance());
         m_enemyManager.HandleEnemies(m_player.transform.position);
@@ -69,7 +70,7 @@ public class EnemyManager
     [SerializeField] private LayerMask m_groundMask;
     [Header("Effects")]
 
-    private readonly Dictionary<Collider, Enemy> m_enemyList = new();
+    public readonly Dictionary<Collider, Enemy> m_enemyList = new();
     public struct Enemy
     {
         public float m_currentHp;
@@ -129,6 +130,7 @@ public class EnemyManager
             t += Time.deltaTime;
             yield return null;
         }
+
     }
     public void HandleEnemies(Vector3 playerPos)
     {
