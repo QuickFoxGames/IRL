@@ -132,6 +132,7 @@ public class Gun : MonoBehaviour
                     else if (shootInput)
                     {
                         vec = FireBullet(m_shotDelay);
+                        SpawnVFX();
                         m_mag.m_currentAmmo--;
                     }
                 }
@@ -149,6 +150,7 @@ public class Gun : MonoBehaviour
         {
             float t = m_currentNumShots == m_burstCount ? m_shotDelay * m_fullAutoBurstDelayMulti : m_shotDelay;
             vec = FireBullet(t);
+            SpawnVFX();
             m_mag.m_currentAmmo--;
         }
         else m_currentNumShots = 0;
@@ -159,6 +161,7 @@ public class Gun : MonoBehaviour
         {
             vec += FireBullet(m_shotDelay);
         }
+        SpawnVFX();
         vec = vec.normalized * (vec.magnitude / m_multiShotCount);
         m_mag.m_currentAmmo--;
     }
@@ -166,21 +169,25 @@ public class Gun : MonoBehaviour
     {
         UpdateBullet(m_bulletPool.GetBullet(m_bulletSpawn.position, m_bulletSpawn.rotation));
         m_gunAnimation.AddRecoilImpulse(m_visualRecoil);
-        m_audioSource.clip = m_audioClips[0];
-        m_audioSource.Play();
         if ((m_semiAuto && m_burst && m_currentNumShots < m_burstCount) || !m_semiAuto) m_gameManager.StartCoroutine(DelayShot(t));
         else
         {
             m_canShoot = false;
             m_currentNumShots = 0;
         }
+        // play audio //
+        m_audioSource.clip = m_audioClips[0];
+        m_audioSource.Play();
+        return new(m_camRecoil.x, m_camRecoil.y, m_camRecoil.z);
+    }
+    private void SpawnVFX()
+    {
         var flash = m_pools.SpawnFromPool("MuzzleFlash", m_muzzleFlashSpawn);
         flash.transform.GetChild(0).localScale = m_muzzleFlashScale;
         flash.transform.GetChild(1).localScale = m_muzzleFlashScale;
         if (m_useSparks) flash.transform.GetChild(2).gameObject.SetActive(true);
         else flash.transform.GetChild(2).gameObject.SetActive(false);
         m_pools.ReturnToPoolDelayed("MuzzleFlash", flash, 2.1f);
-        return new(m_camRecoil.x, m_camRecoil.y, m_camRecoil.z);
     }
     private void UpdateBullet(Bullet b)
     {
@@ -190,8 +197,9 @@ public class Gun : MonoBehaviour
         Vector3 direction = m_bulletSpawn.forward;
         if (!m_aimState || m_multiShot)
         {
-            direction = Quaternion.AngleAxis(Random.Range(-m_hipAngle, m_hipAngle), m_bulletSpawn.up) * direction;
-            direction = Quaternion.AngleAxis(Random.Range(-m_hipAngle, m_hipAngle), m_bulletSpawn.right) * direction;
+            float angle = m_hipAngle * (m_aimState ? 0.5f : 1f); // if aiming reduce the angle by 50%
+            direction = Quaternion.AngleAxis(Random.Range(-angle, angle), m_bulletSpawn.up) * direction; // random rotation around the local y axis
+            direction = Quaternion.AngleAxis(Random.Range(-angle, angle), m_bulletSpawn.right) * direction; // random rotation around the local x axiz
         }
         b.m_rb.linearVelocity = m_muzzleVelocity * direction.normalized;
     }

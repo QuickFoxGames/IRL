@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using MGUtilities;
+using UnityEngine.Animations.Rigging;
 public class Player : MonoBehaviour
 {
     [Header("CrossHair")]
@@ -21,6 +22,7 @@ public class Player : MonoBehaviour
     private bool m_shootInput;
     private bool m_shootInputReleased;
     private bool m_aimInput;
+    private int m_aimCount = 0;
     private bool m_reloadInput;
     private float m_mouseWheel;
     private float m_mouseX;
@@ -121,17 +123,11 @@ public class Player : MonoBehaviour
         }
         if (Input.GetKeyDown(KeyCode.Mouse1) && m_crossHair.m_object)
         {
-            if (CrosshairCoroutine != null)
-                StopCoroutine(CrosshairCoroutine);
-            CrosshairCoroutine = StartCoroutine(Coroutines.LerpVector3ToZeroOverTime(false, 0.25f, m_crossHair.m_object.transform.localScale,
-                value => m_crossHair.m_object.transform.localScale = value));
+            RunCrossHair(false);
         }
         if (Input.GetKeyUp(KeyCode.Mouse1) && m_crossHair.m_object)
         {
-            if (CrosshairCoroutine != null)
-                StopCoroutine(CrosshairCoroutine);
-            CrosshairCoroutine = StartCoroutine(Coroutines.LerpVector3ToZeroOverTime(true, 0.25f, m_crossHair.m_object.transform.localScale,
-                value => m_crossHair.m_object.transform.localScale = value));
+            RunCrossHair(true);
         }
         #endregion
         CheckGround();
@@ -150,18 +146,37 @@ public class Player : MonoBehaviour
 
         m_healthSystem.RegenHp();
 
-        m_guns[m_gunIndex].UpdateAnimations(m_aimInput);
+        m_guns[m_gunIndex].UpdateAnimations((m_rb.linearVelocity.magnitude <= m_walkSpeed * 1.1f && m_aimInput) || (!m_sprintInput && m_rb.linearVelocity.magnitude > m_walkSpeed * 1.1f));
         if (m_reloadInput) m_guns[m_gunIndex].Reload();
 
-        if (!m_aimInput) m_crossHair.UpdateCrossHair(recoil.x);
+        if (!m_sprintInput && !m_aimInput) m_crossHair.UpdateCrossHair(recoil.x);
+    }
+    private void RunCrossHair(bool state)
+    {
+        if (CrosshairCoroutine != null)
+        {
+            StopCoroutine(CrosshairCoroutine);
+            m_crossHair.m_object.transform.localScale = Vector3.one * (m_crossHair.m_object.transform.localScale.y > 0.25f && !state ? 1f : 0f);
+        }
+        CrosshairCoroutine = StartCoroutine(Coroutines.LerpVector3ToZeroOverTime(state, 0.25f, m_crossHair.m_object.transform.localScale,
+            value => m_crossHair.m_object.transform.localScale = value));
     }
     #region HandleAnimations
     [Header("Animations")]
-    [SerializeField] private Transform m_lLegTarget;
+    [SerializeField] private Transform m_lFootTarget;
+    [SerializeField] private TwoBoneIKConstraint m_lFootIK;
+    [SerializeField] private Transform m_rFootTarget;
+    [SerializeField] private TwoBoneIKConstraint m_rFootIK;
+    [SerializeField] private float m_hipHeight;
+    [SerializeField] private float m_stepLength;
+    [SerializeField] private float m_stepWidth;
     [SerializeField] private Transform m_lHandTarget;
     [SerializeField] private Transform m_rHandTarget;
     [SerializeField] private Transform m_bodyIkTarget;
     [SerializeField] private Transform[] m_lookTargets;
+    [SerializeField] private Animator m_animator;
+    private float m_animatorVert = 0f;
+    private float m_animatorHorz = 0f;
     private void HandleAnimations(float xrot)
     {
         float map = MGFunc.MapRangeTo01(xrot, m_cam.m_camLowerBounds, m_cam.m_camUpperBounds); // Assuming MapRange maps to [0, 1]
@@ -189,6 +204,36 @@ public class Player : MonoBehaviour
 
         m_lHandTarget.SetPositionAndRotation(m_guns[m_gunIndex].m_lIkTarget.position, m_guns[m_gunIndex].m_lIkTarget.rotation);
         m_rHandTarget.SetPositionAndRotation(m_guns[m_gunIndex].m_rIkTarget.position, m_guns[m_gunIndex].m_rIkTarget.rotation);
+
+        //HandleFeetIK();
+
+        m_animator.SetBool("Moving", m_verticalInput != 0 || m_horizontalInput != 0);
+        float multi = m_sprintInput ? 2f : 1f;
+        m_animatorVert = Mathf.Lerp(m_animatorVert, m_verticalInput * multi, m_currentAcceleration * Time.deltaTime);
+        m_animatorHorz = Mathf.Lerp(m_animatorHorz, m_horizontalInput * multi, m_currentAcceleration * Time.deltaTime);
+        m_animator.SetFloat("Vert", m_animatorVert);
+        m_animator.SetFloat("Horz", m_animatorHorz);
+    }
+    private void HandleFeetIK()
+    {
+        // Left foot
+        if (Physics.Raycast(m_transform.position + m_hipHeight * Vector3.up + m_stepLength * m_transform.forward - m_stepWidth * m_transform.right, 
+            Vector3.down, out RaycastHit hitL, m_hipHeight, m_groundMask))
+        {
+            m_lFootIK.weight = 1f;
+            m_lFootTarget.SetPositionAndRotation(hitL.point, Quaternion.LookRotation(m_transform.forward, hitL.normal));
+            Debug.DrawLine(transform.position + m_hipHeight * Vector3.up + m_stepLength * transform.forward - m_stepWidth * transform.right, hitL.point, Color.red);
+        }
+        else m_lFootIK.weight = 0f;
+        // Right foot
+        if (Physics.Raycast(m_transform.position + m_hipHeight * Vector3.up + m_stepLength * m_transform.forward + m_stepWidth * m_transform.right, 
+            Vector3.down, out RaycastHit hitR, m_hipHeight, m_groundMask))
+        {
+            m_rFootIK.weight = 1f;
+            m_rFootTarget.SetPositionAndRotation(hitR.point, Quaternion.LookRotation(m_transform.forward, hitR.normal));
+            Debug.DrawLine(transform.position + m_hipHeight * Vector3.up + m_stepLength * transform.forward + m_stepWidth * transform.right, hitR.point, Color.blue);
+        }
+        else m_rFootIK.weight = 0f;
     }
     #endregion
     private void FixedUpdate()
@@ -369,6 +414,7 @@ public class CrossHair
     [SerializeField] private float m_maxDisplacement;
     [SerializeField] private RectTransform m_center;
     [SerializeField] private List<RectTransform> m_pegs = new();
+    public bool m_state = true;
     private List<Vector3> m_originalPositions = new();
     public GameObject m_object;
     public void Init()
