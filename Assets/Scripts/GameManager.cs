@@ -29,7 +29,7 @@ public class GameManager : Singleton_template<GameManager>
     }
     void Update()
     {
-        if (m_enemyManager.m_enemyList.Count <= 0) StartCoroutine(m_enemyManager.SpawnEnemy(5, m_poolManager));
+        if (m_spawnEnemies && m_enemyManager.m_enemyList.Count <= 0) StartCoroutine(m_enemyManager.SpawnEnemy(5, m_poolManager));
         if (m_PointsText) m_PointsText.text = "$" + m_points;
         m_bulletPool.HandleBullets(m_poolManager, Instance());
         m_enemyManager.HandleEnemies(m_player.transform.position);
