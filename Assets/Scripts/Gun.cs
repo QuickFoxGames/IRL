@@ -10,6 +10,7 @@ public class Gun : MonoBehaviour
     [SerializeField] private int m_burstCount;
     [SerializeField] private float m_fullAutoBurstDelayMulti;
     [SerializeField] private bool m_multiShot;
+    [SerializeField] private bool m_useSpread;
     [SerializeField] private int m_multiShotCount;
     [Header("Stats")]
     [SerializeField] private int m_fireRate;
@@ -195,7 +196,7 @@ public class Gun : MonoBehaviour
         b.m_penetration = m_penetration;
         b.m_damage = m_damage;
         Vector3 direction = m_bulletSpawn.forward;
-        if (!m_aimState || m_multiShot)
+        if (!m_aimState || m_useSpread)
         {
             float angle = m_hipAngle * (m_aimState ? 0.5f : 1f); // if aiming reduce the angle by 50%
             direction = Quaternion.AngleAxis(Random.Range(-angle, angle), m_bulletSpawn.up) * direction; // random rotation around the local y axis

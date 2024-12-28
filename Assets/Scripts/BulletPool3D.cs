@@ -90,6 +90,13 @@ namespace MGUtilities
                         StartCoroutine(Coroutines.LerpVector3ToZeroOverTime(true, 0.5f, value => pointsIndicator.transform.localScale = value));
                         poolManager.ReturnToPoolDelayed("PointsIndicator", pointsIndicator, 0.55f);
                     }
+                    else if (hit.collider.gameObject.layer == 11)
+                    {
+                        var hitMarker = poolManager.SpawnFromPool("HitMarker", Vector3.zero, Quaternion.Euler(0f, 0f, Random.Range(-15f, 15f)));
+                        hitMarker.transform.localPosition = Vector3.zero;
+                        StartCoroutine(Coroutines.PingPongVector3OverTime(0.9f * Vector3.one, 2f * Vector3.one, 0.125f, value => hitMarker.transform.localScale = value));
+                        poolManager.ReturnToPoolDelayed("HitMarker", hitMarker, 0.126f);
+                    }
                     if (hit.normal != Vector3.zero)
                     {
                         var bulletHit = poolManager.SpawnFromPool("BulletHit", hit.point, Quaternion.LookRotation(-hit.normal));
