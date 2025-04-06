@@ -89,6 +89,7 @@ namespace MGUtilities
                         pointsIndicator.GetComponent<Rigidbody2D>().AddForce(300f * Vector3.up, ForceMode2D.Impulse);
                         StartCoroutine(Coroutines.LerpVector3ToZeroOverTime(true, 0.5f, value => pointsIndicator.transform.localScale = value));
                         poolManager.ReturnToPoolDelayed("PointsIndicator", pointsIndicator, 0.55f);
+                        hit.collider.gameObject.GetComponent<Rigidbody>().AddForceAtPosition(bullet.m_rb.linearVelocity.magnitude * -bullet.m_rb.mass * hit.normal, hit.point);
                     }
                     else if (hit.collider.gameObject.layer == 11)
                     {
@@ -109,6 +110,7 @@ namespace MGUtilities
                     }
                     bullet.m_penetration--;
                     bullet.m_damage *= 0.5f;
+                    bullet.m_rb.linearVelocity *= 0.8f;
                     if (bullet.m_penetration < 0)
                     {
                         ReturnBullet(bullet);

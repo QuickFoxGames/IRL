@@ -48,6 +48,7 @@ public class Gun : MonoBehaviour
     private int m_currentReserveAmmo;
     private int m_currentNumShots = 0;
     private float m_shotDelay;
+    public bool IsReloading { get { return m_isReloading; } }
 
     private BulletPool3D m_bulletPool;
     private PoolManager m_pools;
@@ -314,7 +315,7 @@ public class GunAnimation
     public void RunReloadAnimation(bool state, float time)
     {
         if (!m_animator) return;
-        m_animator.speed = m_reloadClip.length / time;
+        //m_animator.speed = m_reloadClip.length / time;
         m_animator.SetBool("Reload", state);
     }
 }

@@ -20,6 +20,7 @@ public class Player : MonoBehaviour
     private bool m_sprintInput;
     private bool m_crouchInput;
     private bool m_shootInput;
+    private bool m_shootInputPressed;
     private bool m_shootInputReleased;
     private bool m_aimInput;
     private int m_aimCount = 0;
@@ -34,6 +35,7 @@ public class Player : MonoBehaviour
 
     private Transform m_transform;
     private Rigidbody m_rb;
+    private FPSAnimations m_fpsAnimator;
     private HealthSystem m_healthSystem;
     //private Vehicle m_vehicle;
     private Coroutine CrosshairCoroutine;
@@ -95,7 +97,7 @@ public class Player : MonoBehaviour
         m_sprintInput = Input.GetKey(KeyCode.LeftShift);
         m_crouchInput = Input.GetKey(KeyCode.LeftControl);
         m_shootInput = Input.GetKey(KeyCode.Mouse0);
-        m_shootInputReleased = Input.GetKeyDown(KeyCode.Mouse0);
+        m_shootInputPressed = Input.GetKeyDown(KeyCode.Mouse0);
         m_shootInputReleased = Input.GetKeyUp(KeyCode.Mouse0);
         m_aimInput = Input.GetKey(KeyCode.Mouse1);
         m_reloadInput = Input.GetKey(KeyCode.R);
@@ -148,6 +150,7 @@ public class Player : MonoBehaviour
 
         m_guns[m_gunIndex].UpdateAnimations((m_rb.linearVelocity.magnitude <= m_walkSpeed * 1.1f && m_aimInput) || (!m_sprintInput && m_rb.linearVelocity.magnitude > m_walkSpeed * 1.1f && m_aimInput));
         if (m_reloadInput) m_guns[m_gunIndex].Reload();
+        //m_fpsAnimator.Reload(m_guns[m_gunIndex].IsReloading);
 
         if (!m_sprintInput && !m_aimInput) m_crossHair.UpdateCrossHair(recoil.x);
     }
@@ -204,6 +207,9 @@ public class Player : MonoBehaviour
 
         m_lHandTarget.SetPositionAndRotation(m_guns[m_gunIndex].m_lIkTarget.position, m_guns[m_gunIndex].m_lIkTarget.rotation);
         m_rHandTarget.SetPositionAndRotation(m_guns[m_gunIndex].m_rIkTarget.position, m_guns[m_gunIndex].m_rIkTarget.rotation);
+
+        //if (m_shootInputPressed) m_fpsAnimator.OnPullTrigger();
+        //if (m_shootInputReleased) m_fpsAnimator.OnReleaseTrigger();
 
         //HandleFeetIK();
 
@@ -307,7 +313,6 @@ public class Player : MonoBehaviour
     {
         Vector3 moveDirection = m_currentSpeed * Vector3.ProjectOnPlane(m_verticalInput * m_transform.forward + 
             m_horizontalInput * m_strafeMultiplier * m_transform.right, m_groundNormal).normalized;
-        if (m_flatVelocity.magnitude > moveDirection.magnitude && !m_isGrounded) m_flatVelocity = moveDirection.magnitude * m_flatVelocity.normalized;
         Vector3 moveForce = (m_verticalInput < 0 ? m_moveBackMultiplier : 1f) * m_rb.mass * m_currentAcceleration * (moveDirection - m_flatVelocity);
         Vector3 frictionForce = Vector3.zero;
         if (m_isGrounded)
